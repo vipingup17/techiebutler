@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
 	"techiebutler/configs"
+
+	"gorm.io/gorm"
 )
 
 func createNewEmployee(name, position string, salary float64) error {
@@ -41,21 +44,28 @@ func getEmployeeByID(id int) (*Employee, error) {
 
 func updateEmployee(id int, name, position string, salary float64) error {
 
-	var employeeModel EmployeeModel
+	return configs.GetORM().Transaction(func(tx *gorm.DB) error {
+		var employeeModel EmployeeModel
+		if err := tx.First(&employeeModel, id).Error; err != nil {
+			return err
+		}
 
-	if err := configs.GetORM().First(&employeeModel, id).Error; err != nil {
-		return err
-	}
+		if name != "" {
+			employeeModel.Name = name
+		}
+		if position != "" {
+			employeeModel.Position = position
+		}
+		if salary != 0 {
+			employeeModel.Salary = salary
+		}
 
-	employeeModel.Name = name
-	employeeModel.Position = position
-	employeeModel.Salary = salary
+		if err := tx.Save(&employeeModel).Error; err != nil {
+			return err
+		}
 
-	if err := configs.GetORM().Save(&employeeModel).Error; err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func deleteEmployee(id int) error {
